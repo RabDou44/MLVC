@@ -192,7 +192,33 @@ def _conv2d_forward(x, W, b, stride=1, pad=0):
     C_out, C_in, k, _ = W.shape
 
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-    raise NotImplementedError("Provide your solution here")
+
+    xp, pad_config = _pad2d(x, pad) #Added Padding via above helperfunction xü:(C_in,H+2*Pad,W+2*Pad)
+
+    cols, idx, H_out, W_out = _im2col_from_padded(xp, k, stride) # As in the explanation from above helperfunctions: we transform the sliding windows into columns so we can use Matrixmultiplication cols: (C_in*k*k, H_out*W_out)
+
+    W_col = W.reshape(C_out, -1) #Filters get changed to Columns
+
+    out_cols = W_col @ cols #We do the matrix multiply
+    out_cols += b.reshape(-1, 1) #Add biases
+
+    out = out_cols.reshape(C_out, H_out, W_out) #Reshape back into 3D Tenspr
+
+    cache = {
+        "x_shape": x.shape,
+        "W": W,
+        "b": b,
+        "stride": stride,
+        "pad": pad,
+        "pad_config": pad_config,
+        
+        "cols": cols,
+        "idx": idx,
+        "xp_shape": xp.shape,
+        "H_out": H_out,
+        "W_out": W_out,
+    }
+
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     return out, cache
@@ -251,7 +277,26 @@ def _conv2d_backward(dout, cache):
     idx = cache["idx"]
 
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-    raise NotImplementedError("Provide your solution here")
+    C_out, C_in, k, _ = W.shape
+    dout_flat = dout.reshape(C_out, -1)
+
+    db = dout_flat.sum(axis=1) #gradient depending on bias, just summing up over dout, dL/dy
+
+    dW_col = dout_flat @ cols.T  #gradient depending on Filter/the kernel, 
+    dW = dW_col.reshape(W.shape)
+
+    W_col = W.reshape(C_out, -1)             
+    dcols = W_col.T @ dout_flat   #dcols, used for the build in function below and is basically the inverse of line 202
+
+
+    xp_grad = _col2im_into_padded(dcols, xp_shape, idx) # gradient depending on pixels/ positions
+    if pad == 0:    #remove padding?
+        dx = xp_grad
+    else:
+        _, H_p, W_p = xp_shape
+        C_in, H, W = x_shape
+        dx = xp_grad[:, pad: H_p - pad, pad: W_p - pad]
+
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     return dx.astype(np.float64), dW.astype(np.float64), db.astype(np.float64)
@@ -300,7 +345,25 @@ def _maxpool2d_forward(x, kernel=2, stride=2):
     C, H, W = x.shape
 
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-    raise NotImplementedError("Provide your solution here")
+    cols, idx, H_out, W_out = _im2col_from_padded(x, k=kernel, stride=stride)
+
+    max_vals = np.max(cols, axis=0)
+    max_idx = np.argmax(cols, axis=0)
+
+    out = max_vals.reshape(C, H_out, W_out)
+
+
+    cache = {
+    "x_shape": x.shape,
+    "kernel": kernel,
+    "stride": stride,
+    "idx": idx,
+    "max_idx": max_idx,
+    "H_out":H_out,
+    "W_out":W_out 
+    }
+
+    
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     return out.astype(np.float64), cache
@@ -350,7 +413,14 @@ def _maxpool2d_backward(dout, cache):
     W_out = cache["W_out"]
 
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-    raise NotImplementedError("Provide your solution here")
+    dout_flat = dout.reshape(-1)
+    dcols = np.zeros((C * kernel * kernel, H_out * W_out), dtype=dout.dtype)
+    dcols[max_idx, np.arange(H_out * W_out)] = dout_flat
+    
+    dx = _col2im_into_padded(dcols, (C, H, W), (i, j, c))
+
+
+
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     return dx.astype(np.float64)
