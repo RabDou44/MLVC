@@ -40,7 +40,9 @@ class Perceptron:
         numpy.ndarray: Class labels.
         """
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        # raise NotImplementedError("Provide your solution here")
+        weighted_sum = np.dot(X.T, self.w) if X.ndim > 1 else np.dot(X, self.w)
+        return np.where(weighted_sum >= 0, 1, 0)
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     def fit(self, X, y):
@@ -88,7 +90,7 @@ class Perceptron:
                 prediction_for_update = self.forward(X[wrong_prediction_idx, :])
                 # update the weights of the perceptron at random
                 # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-                raise NotImplementedError("Provide your solution here")
+                self.w += self.lr * (y[wrong_prediction_idx] - prediction_for_update) * X[wrong_prediction_idx, :]
                 # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
             # Appending number of misclassified examples
@@ -109,9 +111,8 @@ class Perceptron:
         numpy.ndarray: Predicted class labels.
         """
 
-        X = np.column_stack([X, np.ones(X.shape[0])])
-
-    
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        # Add bias term (column of ones)
+        X = np.column_stack([X, np.ones(X.shape[0])])
+        return self.forward(X.T)
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
