@@ -41,8 +41,9 @@ class Perceptron:
         """
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
         # raise NotImplementedError("Provide your solution here")
-        weighted_sum = np.dot(X.T, self.w) if X.ndim > 1 else np.dot(X, self.w)
-        return np.where(weighted_sum >= 0, 1, 0)
+        # weighted_sum = np.dot(X.T, self.w) if X.ndim > 1 else np.dot(X, self.w)
+        # return np.where(weighted_sum >= 0, 1, 0)
+        return np.where(np.dot(self.w, X) >= 0, 1, -1)
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     def fit(self, X, y):
@@ -67,8 +68,8 @@ class Perceptron:
         # n-> number of features
         m, n = X.shape
 
-        # Initialize weights with zero
-        self.w = np.zeros(X.shape[1])
+        # Initialize weights with random values
+        self.w = np.random.rand(X.shape[1])
 
         # Empty list to store how many examples were
         # misclassified at every iteration.
