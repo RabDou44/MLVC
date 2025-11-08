@@ -347,8 +347,10 @@ def _maxpool2d_forward(x, kernel=2, stride=2):
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
     cols, idx, H_out, W_out = _im2col_from_padded(x, k=kernel, stride=stride)
 
-    max_vals = np.max(cols, axis=0)
-    max_idx = np.argmax(cols, axis=0)
+    cols_reshaped = cols.reshape(C, kernel * kernel, H_out * W_out)
+
+    max_vals = np.max(cols_reshaped, axis=1)
+    max_idx = np.argmax(cols_reshaped, axis=1)
 
     out = max_vals.reshape(C, H_out, W_out)
 
@@ -413,13 +415,26 @@ def _maxpool2d_backward(dout, cache):
     W_out = cache["W_out"]
 
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
+
     dout_flat = dout.reshape(-1)
-    dcols = np.zeros((C * kernel * kernel, H_out * W_out), dtype=dout.dtype)
-    dcols[max_idx, np.arange(H_out * W_out)] = dout_flat
+
+    dcols = np.zeros((C * kernel * kernel, H_out * W_out))
+
     
-    dx = _col2im_into_padded(dcols, (C, H, W), (i, j, c))
+    offsets = (np.arange(C) * kernel * kernel)[:, None] #Find out where the different channels begin  
 
+    rows = offsets + max_idx  #Where the max index inside each pooling window was, shifted to the necessary position for the flat vector 
+    cols = np.tile(np.arange(H_out * W_out), (C, 1))# tile repeats an operation for each channel, so we set windowposition for each channel
 
+    rows_idx = rows.reshape(-1) #I otherwise continually had weird vektor sizes, so i just flattened them
+    cols_idx = cols.reshape(-1)
+    vals = dout_flat.reshape(-1)
+    dcols[rows_idx, cols_idx] = vals #now the max gradients are in the correct position
+    
+
+    dx = _col2im_into_padded(dcols, (C, H, W), (i, j, c)) #Function reverses the gradients
+
+    # original thing wasnt padded, because doesnt matter for max_pooling, so we dont have to rip that out again
 
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
