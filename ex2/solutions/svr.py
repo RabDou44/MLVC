@@ -95,7 +95,52 @@ class EpsilonSVR:
         n, _ = X.shape
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        # Step 1: Normalize X if required
+        if self.__normalize:
+            self.__norm = np.max(np.linalg.norm(X, axis=1))
+            X_scaled = X / self.__norm
+        else:
+            X_scaled = X
+        self.__training_X = X_scaled
+        # Step 2: Compute the kernel Gram matrix K
+        K = self._kernel(X_scaled, X_scaled) 
+        # Step 3: Set up the QP problem
+        # Objective function components
+        P = np.zeros((2*n, 2*n))
+        P[:n, :n] = K
+        P[n:, n:] = K
+        q = np.hstack([self.epsilon * np.ones(n) - y, self.epsilon * np.ones(n) + y])
+        # Constraints
+        G = np.vstack([-np.eye(2*n), np.eye(2*n)])
+        h = np.hstack([np.zeros(2*n), self.C * np.ones(2*n)])
+        A = np.hstack([np.ones(n), -np.ones(n)]).reshape(1, -1)
+        b = np.array([0.0])
+        # Convert to cvxopt format
+        P_cvx = cvxopt.matrix(P)
+        q_cvx = cvxopt.matrix(q)
+        G_cvx = cvxopt.matrix(G)
+        h_cvx = cvxopt.matrix(h)
+        A_cvx = cvxopt.matrix(A)
+        b_cvx = cvxopt.matrix(b)
+        # Step 4: Solve the QP problem
+        solution = cvxopt.solvers.qp(P_cvx, q_cvx, G_cvx, h_cvx, A_cvx, b_cvx)
+        z = np.array(solution['x']).flatten()
+        alpha = z[:n]
+        alpha_star = z[n:]
+        self.__a = alpha
+        self.__a_star = alpha_star
+        self.__coef = alpha - alpha_star
+        # Step 5: Identify support vectors
+        self.__support_mask = (self.__coef != 0)
+        # Step 6: Compute bias b using KKT conditions
+        sv_indices = np.where((self.__coef > 1e-5) & (self.__coef < self.C - 1e-5))[0]
+        if len(sv_indices) > 0:
+            b_values = []
+            for i in sv_indices:
+                sum_k = np.sum(self.__coef * K[:, i])
+                b_i = y[i] - sum_k
+                b_values.append(b_i)
+            self.__bias = np.mean(b_values)    
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
         
         return self
@@ -128,7 +173,8 @@ class EpsilonSVR:
         X = np.asarray(X, dtype=np.float64)
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        K_test = self._k_train_test(X if not self.__normalize else X / self.__norm)
+        y_pred = np.dot(self.__coef, K_test) + self.__bias
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
         return y_pred
