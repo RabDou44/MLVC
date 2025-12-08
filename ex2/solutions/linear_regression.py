@@ -40,7 +40,13 @@ class LinearRegression:
         X = np.asarray(X, dtype=np.float64)
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
+
+
+        ones = np.ones((X.shape[0], 1))
+
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
         return np.hstack([ones, X])
@@ -74,7 +80,12 @@ class LinearRegression:
             Fitted model.
         """
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+
+        Xb = self._add_bias(X)
+        self.n_features_ = X.shape[1] if X.ndim > 1 else 1
+        w, *_ = np.linalg.lstsq(Xb, y)
+        self.w = w
+
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
         return self
@@ -102,7 +113,19 @@ class LinearRegression:
         """
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        
+        if self.w is None:
+            raise ValueError("Model has not been fit yet.") 
+        
+        if X.shape[1] != self.n_features_:
+            raise ValueError("feature dimensions dont match training")
+        
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
+
+        Xb = self._add_bias(X)
+
+        
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
         return Xb @ self.w
