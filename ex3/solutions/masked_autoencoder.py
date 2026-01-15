@@ -52,7 +52,18 @@ def patchify(images: torch.Tensor, patch_size: int) -> torch.Tensor:
     assert patch_size in (4, 8)
 
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-    raise NotImplementedError("Provide your solution here")
+    #the opposite of the below
+
+    gh = gw = 16 // patch_size
+
+    P = patch_size * patch_size
+
+    x = images.view(B, 1, gh, patch_size, gw, patch_size)
+
+    x = x.permute(0, 2, 4, 3, 5).contiguous()
+
+    patches = x.view(B, gh * gw, P)  #B,N,P
+
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     return patches
@@ -88,7 +99,16 @@ def unpatchify(patches: torch.Tensor, patch_size: int) -> torch.Tensor:
     assert P == patch_size * patch_size
 
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-    raise NotImplementedError("Provide your solution here")
+    gh = gw = int((N) ** 0.5) # gh * gw = N
+
+    x = patches.view(B, gh, gw, patch_size, patch_size) #Batch size,  patchrow,column, size size
+
+    x = x.permute(0, 3, 1, 4, 2).contiguous() #Switch rows so patch patchsize * patchrow and size * patchcolumn
+
+    x = x.view(B, 1, gh * patch_size, gw * patch_size) #so now view works 
+
+    assert x.shape == (B, 1, 16, 16)  #pls be true?
+
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     return x
@@ -121,7 +141,17 @@ def random_mask_indices(num_patches: int, mask_ratio: float) -> torch.Tensor:
         mask:     T  F  T  F  F  F  T  F
     """
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-    raise NotImplementedError("Provide your solution here")
+    
+    
+    k = int(round(num_patches * mask_ratio))
+
+    perm = torch.randperm(num_patches)
+
+    mask = torch.zeros(num_patches, dtype=torch.bool)
+
+    mask[perm[:k]] = True
+
+
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
     return mask
 
@@ -161,7 +191,12 @@ def block_mask_indices(grid_h: int, grid_w: int, block_h: int, block_w: int) -> 
     """
     assert 1 <= block_h <= grid_h and 1 <= block_w <= grid_w
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-    raise NotImplementedError("Provide your solution here")
+    top = torch.randint(0, grid_h - block_h + 1, (1,)).item()
+    left = torch.randint(0, grid_w - block_w + 1, (1,)).item()
+    mask_2d = torch.zeros(grid_h, grid_w, dtype=torch.bool)
+    mask_2d[top:top + block_h, left:left + block_w] = True
+    mask = mask_2d.flatten()
+
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
     return mask
 
@@ -201,7 +236,12 @@ def grid_mask_indices(grid_h: int, grid_w: int, step_h: int, step_w: int) -> tor
     """
     assert step_h >= 1 and step_w >= 1
     # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-    raise NotImplementedError("Provide your solution here")
+    
+    mask_2d = torch.zeros(grid_h, grid_w, dtype=torch.bool)
+    mask_2d[0::step_h, 0::step_w] = True
+
+    mask = mask_2d.flatten()
+
     # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
     return mask
 
@@ -381,7 +421,13 @@ class TinyMAE(nn.Module):
         * Normalize by total number of masked pixels (avoid div-by-zero).
         """
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        target = patchify(images, self.patch_size)
+        sq_error = (recon - target) ** 2 
+        mask = mask.unsqueeze(-1).float()
+        sq_error = sq_error * mask
+        num_masked_pixels = mask.sum() * target.size(-1)
+        loss = sq_error.sum() / (num_masked_pixels + 1e-8)
+
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
         return loss
 
