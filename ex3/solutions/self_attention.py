@@ -60,7 +60,17 @@ class MultiHeadSelfAttention(nn.Module):
         assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_head = d_model // num_heads
+
+        # Linear projections for Q, K, V
+        self.q_proj = nn.Linear(d_model, d_model)
+        self.k_proj = nn.Linear(d_model, d_model)
+        self.v_proj = nn.Linear(d_model, d_model)
+
+        # Output projection
+        self.out_proj = nn.Linear(d_model, d_model)
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
         self.last_attn = None  # (B, H, S, S)
@@ -108,7 +118,38 @@ class MultiHeadSelfAttention(nn.Module):
         assert D == self.d_model
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        # 1. Project inputs to Q, K, V
+        Q = self.q_proj(x)  # (B, S, d_model)
+        K = self.k_proj(x)  # (B, S, d_model)
+        V = self.v_proj(x)  # (B, S, d_model)
+
+        # 2. Reshape for multi-head attention
+        # Split d_model into num_heads x d_head
+        Q = Q.view(B, S, self.num_heads, self.d_head).transpose(1, 2)  # (B, H, S, d_head)
+        K = K.view(B, S, self.num_heads, self.d_head).transpose(1, 2)  # (B, H, S, d_head)
+        V = V.view(B, S, self.num_heads, self.d_head).transpose(1, 2)  # (B, H, S, d_head)
+
+        # 3. Compute scaled dot-product attention scores
+        # scores = Q @ K^T / sqrt(d_head)
+        scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_head)  # (B, H, S, S)
+
+        # 4. Apply softmax to get attention weights
+        attn = F.softmax(scores, dim=-1)  # (B, H, S, S)
+
+        # Store attention weights for visualization
+        self.last_attn = attn.detach()
+
+        # 5. Weight the values by attention
+        context = torch.matmul(attn, V)  # (B, H, S, d_head)
+
+        # 6. Concatenate heads
+        # Transpose back: (B, H, S, d_head) -> (B, S, H, d_head)
+        context = context.transpose(1, 2).contiguous()  # (B, S, H, d_head)
+        # Reshape to (B, S, d_model)
+        context = context.view(B, S, self.d_model)
+
+        # 7. Apply output projection
+        out = self.out_proj(context)  # (B, S, d_model)
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
         return out
