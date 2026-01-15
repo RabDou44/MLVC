@@ -119,36 +119,33 @@ class MultiHeadSelfAttention(nn.Module):
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
         # 1. Project inputs to Q, K, V
-        Q = self.q_proj(x)  # (B, S, d_model)
-        K = self.k_proj(x)  # (B, S, d_model)
-        V = self.v_proj(x)  # (B, S, d_model)
+        Q = self.q_proj(x)
+        K = self.k_proj(x)
+        V = self.v_proj(x)
 
-        # 2. Reshape for multi-head attention
-        # Split d_model into num_heads x d_head
-        Q = Q.view(B, S, self.num_heads, self.d_head).transpose(1, 2)  # (B, H, S, d_head)
-        K = K.view(B, S, self.num_heads, self.d_head).transpose(1, 2)  # (B, H, S, d_head)
-        V = V.view(B, S, self.num_heads, self.d_head).transpose(1, 2)  # (B, H, S, d_head)
+        # Reshape for multi-head attention - Spliting d_model into num_heads x d_head
+        Q = Q.view(B, S, self.num_heads, self.d_head).transpose(1, 2)
+        K = K.view(B, S, self.num_heads, self.d_head).transpose(1, 2)
+        V = V.view(B, S, self.num_heads, self.d_head).transpose(1, 2)
 
-        # 3. Compute scaled dot-product attention scores
-        # scores = Q @ K^T / sqrt(d_head)
+        # scores = Q @ K^T / sqrt(d_head) scaled dot-product attention scores
         scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_head)  # (B, H, S, S)
 
-        # 4. Apply softmax to get attention weights
+        # Appling softmax to get attention weights
         attn = F.softmax(scores, dim=-1)  # (B, H, S, S)
 
         # Store attention weights for visualization
         self.last_attn = attn.detach()
 
-        # 5. Weight the values by attention
+        # Weight the values by attention
         context = torch.matmul(attn, V)  # (B, H, S, d_head)
 
-        # 6. Concatenate heads
-        # Transpose back: (B, H, S, d_head) -> (B, S, H, d_head)
-        context = context.transpose(1, 2).contiguous()  # (B, S, H, d_head)
+        # Concatenate heads (B, H, S, d_head) -> (B, S, H, d_head)
+        context = context.transpose(1, 2).contiguous()
         # Reshape to (B, S, d_model)
         context = context.view(B, S, self.d_model)
 
-        # 7. Apply output projection
+        # output projection
         out = self.out_proj(context)  # (B, S, d_model)
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
