@@ -110,7 +110,18 @@ class PatchEmbed(nn.Module):
         self.patch_size = int(patch_size)
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        # Compute grid dimensions
+        self.grid_h = img_size // patch_size
+        self.grid_w = img_size // patch_size
+        self.num_patches = self.grid_h * self.grid_w
+        
+        # Define Conv2d projection
+        self.proj = nn.Conv2d(
+            in_channels=in_chans,
+            out_channels=embed_dim,
+            kernel_size=patch_size,
+            stride=patch_size
+        )
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -137,7 +148,14 @@ class PatchEmbed(nn.Module):
         assert H == self.img_size and W == self.img_size
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        # Apply Conv2d projection: (B, C, H, W) -> (B, D, H', W')
+        x = self.proj(x)  # shape: (B, embed_dim, grid_h, grid_w)
+        
+        # Flatten spatial dimensions: (B, D, H', W') -> (B, D, N)
+        x = x.flatten(2)  # flatten dimensions 2 and 3
+        
+        # Transpose to get (B, N, D)
+        x = x.transpose(1, 2)
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
         return x
@@ -177,7 +195,21 @@ class PositionalEncoding(nn.Module):
         self.d_model = d_model
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        if learnable:
+            # Learnable positional embeddings
+            self.pos_embedding = nn.Parameter(torch.randn(1, seq_len, d_model))
+        else:
+            # Sinusoidal positional encodings
+            pe = torch.zeros(1, seq_len, d_model)
+            position = torch.arange(0, seq_len, dtype=torch.float).unsqueeze(1)  # (seq_len, 1)
+            div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+            
+            # Handle even and odd d_model separately to avoid dimension mismatch
+            pe[0, :, 0::2] = torch.sin(position * div_term)  # even indices
+            # For odd d_model, the cosine slice is one element shorter
+            pe[0, :, 1::2] = torch.cos(position * div_term[:pe[0, :, 1::2].shape[1]])  # odd indices
+            
+            self.register_buffer('pos_embedding', pe)
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -204,7 +236,8 @@ class PositionalEncoding(nn.Module):
         assert S == self.seq_len and D == self.d_model
 
         # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-        raise NotImplementedError("Provide your solution here")
+        # Add positional encodings to input embeddings
+        x_pos = x + self.pos_embedding
         # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
         return x_pos
@@ -297,7 +330,9 @@ class ViTClassifier(nn.Module):
 
         if use_cls_token:
             # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-            raise NotImplementedError("Provide your solution here")
+            # Create learnable CLS token
+            self.cls_token = nn.Parameter(torch.randn(1, 1, d_model))
+            seq_len = base_len + 1  # +1 for the CLS token
             # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
         else:
             self.cls_token = None
@@ -379,7 +414,9 @@ class ViTClassifier(nn.Module):
 
         if self.use_cls_token:
             # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-            raise NotImplementedError("Provide your solution here")
+            # Expand CLS token to batch size and prepend to tokens
+            cls_tokens = self.cls_token.expand(B, -1, -1)  # (B, 1, D)
+            tokens = torch.cat([cls_tokens, tokens], dim=1)  # (B, S+1, D)
             # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
 
         h = tokens if self.pos_enc is None else self.pos_enc(tokens)
@@ -392,7 +429,8 @@ class ViTClassifier(nn.Module):
 
         if self.use_cls_token:
             # *****BEGINNING OF YOUR CODE (DO NOT DELETE THIS LINE)*****
-            raise NotImplementedError("Provide your solution here")
+            # Use the first token (CLS token) as the pooled representation
+            pooled = h[:, 0]  # (B, D)
             # *****END OF YOUR CODE (DO NOT DELETE THIS LINE)*****
         else:
             pooled = h.mean(dim=1)
